@@ -25,32 +25,40 @@ include { GET_VISUALISATIONS } from './workflows/getvisualisations.nf'
 include { GET_ATLAS } from './workflows/getatlas.nf'
 include { MAKE_REPORT } from './workflows/makereport.nf'
 
-// Genome variables
-if(params.org && params.genomesdir) {
+// SPLASH-specific processes
+include { SPLASH_FASTP_DEDUPLICATION } from './modules/splashspecific.nf'
+include { SPLASH_TRUNCATE_FASTQ_SEQID } from './modules/splashspecific.nf'
+include { SPLASH_CUTADAPT } from './modules/splashspecific.nf'
+include { SPLASH_INDEX_FASTA as SPLASH_INDEX_FASTA_GENOME } from './modules/splashspecific.nf'
+include { SPLASH_INDEX_FASTA as SPLASH_INDEX_FASTA_TRANSCRIPT } from './modules/splashspecific.nf'
+include { SPLASH_MAKE_PSEUDO_TRACKS } from './modules/splashspecific.nf'
 
-    params.genome_fai = params.genomes[ params.org ].genome_fai
-    params.transcript_fa = params.genomes[ params.org ].transcript_fa
-    params.transcript_fai = params.genomes[ params.org ].transcript_fai
-    params.transcript_gtf = params.genomes[ params.org ].transcript_gtf
-    params.star_genome = params.genomes[ params.org ].star_genome
-    params.regions_gtf = params.genomes[ params.org ].regions_gtf
+// // Genome variables
+// if(params.org && params.genomesdir) {
 
-} else {
+//     params.genome_fai = params.genomes[ params.org ].genome_fai
+//     params.transcript_fa = params.genomes[ params.org ].transcript_fa
+//     params.transcript_fai = params.genomes[ params.org ].transcript_fai
+//     params.transcript_gtf = params.genomes[ params.org ].transcript_gtf
+//     params.star_genome = params.genomes[ params.org ].star_genome
+//     params.regions_gtf = params.genomes[ params.org ].regions_gtf
 
-    if(!params.genome_fai) { exit 1, "--genome_fai is not specified." } 
-    if(!params.transcript_fa) { exit 1, "--transcript_fa is not specified." } 
-    if(!params.transcript_fai) { exit 1, "--transcript_fai is not specified." } 
-    if(!params.transcript_gtf) { exit 1, "--transcript_gtf is not specified." } 
-    if(!params.regions_gtf) { exit 1, "--regions_gtf is not specified." } 
+// } else {
 
-}
+//     if(!params.genome_fai) { exit 1, "--genome_fai is not specified." } 
+//     if(!params.transcript_fa) { exit 1, "--transcript_fa is not specified." } 
+//     if(!params.transcript_fai) { exit 1, "--transcript_fai is not specified." } 
+//     if(!params.transcript_gtf) { exit 1, "--transcript_gtf is not specified." } 
+//     if(!params.regions_gtf) { exit 1, "--regions_gtf is not specified." } 
+
+// }
 
 
 // Create channels for static files
 ch_transcript_fa = Channel.fromPath(params.transcript_fa, checkIfExists: true)
-ch_transcript_fai = Channel.fromPath(params.transcript_fai, checkIfExists: true)
-ch_genome_fai = Channel.fromPath(params.genome_fai, checkIfExists: true)
-ch_transcript_gtf = Channel.fromPath(params.transcript_gtf, checkIfExists: true)
+// ch_transcript_fai = Channel.fromPath(params.transcript_fai, checkIfExists: true)
+// ch_genome_fai = Channel.fromPath(params.genome_fai, checkIfExists: true)
+// ch_transcript_gtf = Channel.fromPath(params.transcript_gtf, checkIfExists: true)
 ch_regions_gtf = Channel.fromPath(params.regions_gtf, checkIfExists: true)
 
 // Channels for optional inputs
@@ -121,17 +129,27 @@ workflow {
     PREPARE INPUTS
     */
     METADATA(params.input) // Get fastq paths 
-    CUTADAPT(METADATA.out) // Trim adapters
+    // CUTADAPT(METADATA.out) // Trim adapters
+    
+    SPLASH_FASTP_DEDUPLICATION(METADATA.out) // Remove PCR duplicates using fastp
+    SPLASH_TRUNCATE_FASTQ_SEQID(SPLASH_FASTP_DEDUPLICATION.out.fastq) // Modify seq ids
+    SPLASH_CUTADAPT(SPLASH_TRUNCATE_FASTQ_SEQID.out.fastq) // Trim adapters
+
+    ch_genome_fai = SPLASH_INDEX_FASTA_GENOME(ch_transcript_fa) // same as ch_transcript_fai
+    ch_transcript_fai = SPLASH_INDEX_FASTA_TRANSCRIPT(ch_transcript_fa) // same as ch_genome_fai
+    ch_transcript_gtf = SPLASH_MAKE_PSEUDO_TRACKS(ch_transcript_fa) // needed for converting transcript coords to genomic coords 
+                                                             // (which are same for viral genome)
 
     /* 
     IDENTIFY HYBRIDS
     */
-    if(!params.skip_premap) {
-        PREMAP(CUTADAPT.out.fastq, ch_star_genome) // Filter spliced reads
-        GET_HYBRIDS(PREMAP.out.fastq, ch_transcript_fa) // Identify hybrids
-    } else {
-        GET_HYBRIDS(CUTADAPT.out.fastq, ch_transcript_fa) // Identify hybrids
-    }
+    // if(!params.skip_premap) {
+    //     PREMAP(CUTADAPT.out.fastq, ch_star_genome) // Filter spliced reads
+    //     GET_HYBRIDS(PREMAP.out.fastq, ch_transcript_fa) // Identify hybrids
+    // } else {
+    //     GET_HYBRIDS(CUTADAPT.out.fastq, ch_transcript_fa) // Identify hybrids
+    // }
+    GET_HYBRIDS(SPLASH_CUTADAPT.out.fastq, ch_transcript_fa) // Identify hybrids
 
     /* 
     IDENTIFY NON-HYBRIDS
