@@ -68,6 +68,25 @@ process SPLASH_CUTADAPT {
     """
 }
 
+process SPLASH_TRUNCATE_FASTA_SEQID {
+    // removes characters following the space from sequence identifier lines (similar to SPLASH_TRUNCATE_FASTQ_SEQID)
+    // needed so that sequence names are correctly assigned in downstream processing (viz. SPLASH_MAKE_PSEUDO_TRACKS and ANALYSE_STRUCTURES:CHUNK_SEQUENCES)
+
+    tag "${ref_name}"
+    
+    input:
+        path(fasta)
+    
+    output:
+        path("*_strippedID.fa")
+    
+    script:
+    ref_name = fasta.getSimpleName()
+    """
+    sed '/^>/s/ .*//' ${fasta} >  ${ref_name}_strippedID.fa
+    """
+}
+
 process SPLASH_INDEX_FASTA {
 
     tag "${ref_name}"
@@ -108,13 +127,11 @@ process SPLASH_MAKE_PSEUDO_TRACKS {
 
     fasta_sequences = readDNAStringSet("$fasta")
 
-    stripped_seqnames = sapply(strsplit(names(fasta_sequences), " "), function(x) x[1]) # Assign first item of sequence identifier as name
-
     transcriptome.gr = GRanges(
-        seqnames = stripped_seqnames,
+        seqnames = names(fasta_sequences), # Assumes sequence identifier lines have no spaces (i.e. no metadata, just name)
         ranges = IRanges(start = rep(1, length(fasta_sequences)), width = width(fasta_sequences)),  # Entire sequence is the range
         strand = rep("+", length(fasta_sequences)),  # RNA on positive strand
-        fasta_id = stripped_seqnames  # Store the FASTA sequence name as fasta_id
+        fasta_id = names(fasta_sequences)  # Store the FASTA sequence identifier as fasta_id
     )
 
     export.gff2(transcriptome.gr, "${ref_name}.gtf")

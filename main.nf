@@ -32,6 +32,7 @@ include { SPLASH_CUTADAPT } from './modules/splashspecific.nf'
 include { SPLASH_INDEX_FASTA as SPLASH_INDEX_FASTA_GENOME } from './modules/splashspecific.nf'
 include { SPLASH_INDEX_FASTA as SPLASH_INDEX_FASTA_TRANSCRIPT } from './modules/splashspecific.nf'
 include { SPLASH_MAKE_PSEUDO_TRACKS } from './modules/splashspecific.nf'
+include { SPLASH_TRUNCATE_FASTA_SEQID } from './modules/splashspecific.nf'
 
 // // Genome variables
 // if(params.org && params.genomesdir) {
@@ -55,7 +56,7 @@ include { SPLASH_MAKE_PSEUDO_TRACKS } from './modules/splashspecific.nf'
 
 
 // Create channels for static files
-ch_transcript_fa = Channel.fromPath(params.transcript_fa, checkIfExists: true)
+// ch_transcript_fa = Channel.fromPath(params.transcript_fa, checkIfExists: true)
 // ch_transcript_fai = Channel.fromPath(params.transcript_fai, checkIfExists: true)
 // ch_genome_fai = Channel.fromPath(params.genome_fai, checkIfExists: true)
 // ch_transcript_gtf = Channel.fromPath(params.transcript_gtf, checkIfExists: true)
@@ -135,6 +136,7 @@ workflow {
     SPLASH_TRUNCATE_FASTQ_SEQID(SPLASH_FASTP_DEDUPLICATION.out.fastq) // Modify seq ids
     SPLASH_CUTADAPT(SPLASH_TRUNCATE_FASTQ_SEQID.out.fastq) // Trim adapters
 
+    ch_transcript_fa = SPLASH_TRUNCATE_FASTA_SEQID(params.transcript_fa) // Modify seq ids
     ch_genome_fai = SPLASH_INDEX_FASTA_GENOME(ch_transcript_fa) // same as ch_transcript_fai
     ch_transcript_fai = SPLASH_INDEX_FASTA_TRANSCRIPT(ch_transcript_fa) // same as ch_genome_fai
     ch_transcript_gtf = SPLASH_MAKE_PSEUDO_TRACKS(ch_transcript_fa) // needed for converting transcript coords to genomic coords 
