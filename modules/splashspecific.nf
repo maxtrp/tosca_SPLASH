@@ -3,6 +3,24 @@
 // Specify DSL2
 nextflow.enable.dsl=2
 
+process SPLASH_MERGE_FASTQ {
+
+    tag "${sample_id}"
+    label 'process_medium'
+
+    input:
+    tuple val(sample_id), path(reads)
+
+    output:
+    tuple val(sample_id), path("*.fastq.gz"), emit: merged_reads
+
+    script:
+    """
+    pigz -dc ${reads} | pigz -c > merged_${sample_id}.fastq.gz
+    """
+
+}
+
 process SPLASH_FASTP_DEDUPLICATION {
 
     tag "${sample_id}"
