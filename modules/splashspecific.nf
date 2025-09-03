@@ -6,6 +6,7 @@ nextflow.enable.dsl=2
 process SPLASH_FASTP_DEDUPLICATION {
 
     tag "${sample_id}"
+    label 'process_medium'    
     container 'quay.io/biocontainers/fastp:0.24.2--heae3180_0' // run fastp in docker biocontainer
     publishDir "${params.outdir}/logs/${sample_id}/", mode: "copy", pattern: "*.log"
 
@@ -30,6 +31,7 @@ process SPLASH_TRUNCATE_FASTQ_SEQID {
     // needed to prevent errors during IDENTIFY_HYBRIDS step (pblat alignments omit these characters)
 
     tag "${sample_id}"
+    label 'process_medium'
 
     input:
         tuple val(sample_id), path(reads)
@@ -46,6 +48,7 @@ process SPLASH_TRUNCATE_FASTQ_SEQID {
 process SPLASH_CUTADAPT {
 
     tag "${sample_id}"
+    label 'process_medium'
     publishDir "${params.outdir}/logs/${sample_id}/", mode: "copy", pattern: "*.log"
 
     input:
@@ -53,7 +56,7 @@ process SPLASH_CUTADAPT {
 
     output:
         tuple val(sample_id), path("${sample_id}.trimmed.fastq.gz"), emit: fastq
-        path("*.cutadapt.log"), emit: log
+        tuple val(sample_id), path("*.cutadapt.log"), emit: log
 
     script:
     args = " -j ${task.cpus}"
@@ -73,6 +76,7 @@ process SPLASH_TRUNCATE_FASTA_SEQID {
     // needed so that sequence names are correctly assigned in downstream processing (viz. SPLASH_MAKE_PSEUDO_TRACKS and ANALYSE_STRUCTURES:CHUNK_SEQUENCES)
 
     tag "${ref_name}"
+    label 'process_low'
     
     input:
         path(fasta)
@@ -90,6 +94,7 @@ process SPLASH_TRUNCATE_FASTA_SEQID {
 process SPLASH_INDEX_FASTA {
 
     tag "${ref_name}"
+    label 'process_low'
     
     input:
         path(fasta)
@@ -109,6 +114,7 @@ process SPLASH_MAKE_PSEUDO_TRACKS {
     // used by tosca for converting from transcript to genomic coordinates
 
     tag "${ref_name}"
+    label 'process_low'
 
     input:
         path(fasta)

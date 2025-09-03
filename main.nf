@@ -15,10 +15,11 @@ nextflow.enable.dsl=2
 
 // Processes
 include { hiclipheader } from './modules/utils.nf'
-include { METADATA } from './modules/metadata.nf'
+include { METADATA } from './workflows/metadata.nf'
 include { CUTADAPT } from './modules/cutadapt.nf'
 include { PREMAP } from './workflows/premap.nf'
 include { GET_HYBRIDS } from './workflows/gethybrids.nf'
+include { TRACK_READ_FATE } from './modules/logging.nf'
 include { GET_NON_HYBRIDS } from './modules/getnonhybrids.nf'
 include { PROCESS_HYBRIDS } from './workflows/processhybrids.nf'
 include { GET_VISUALISATIONS } from './workflows/getvisualisations.nf'
@@ -34,45 +35,72 @@ include { SPLASH_INDEX_FASTA as SPLASH_INDEX_FASTA_TRANSCRIPT } from './modules/
 include { SPLASH_MAKE_PSEUDO_TRACKS } from './modules/splashspecific.nf'
 include { SPLASH_TRUNCATE_FASTA_SEQID } from './modules/splashspecific.nf'
 
-// // Genome variables
+// Genome variables
 // if(params.org && params.genomesdir) {
 
 //     params.genome_fai = params.genomes[ params.org ].genome_fai
-//     params.transcript_fa = params.genomes[ params.org ].transcript_fa
-//     params.transcript_fai = params.genomes[ params.org ].transcript_fai
 //     params.transcript_gtf = params.genomes[ params.org ].transcript_gtf
-//     params.star_genome = params.genomes[ params.org ].star_genome
 //     params.regions_gtf = params.genomes[ params.org ].regions_gtf
 
-// } else {
+// //     params.genome_fai = params.genomes[ params.org ].genome_fai
+// //     params.transcript_fa = params.genomes[ params.org ].transcript_fa
+// //     params.transcript_fai = params.genomes[ params.org ].transcript_fai
+// //     params.transcript_gtf = params.genomes[ params.org ].transcript_gtf
+// //     params.star_genome = params.genomes[ params.org ].star_genome
+// //     params.regions_gtf = params.genomes[ params.org ].regions_gtf
 
-//     if(!params.genome_fai) { exit 1, "--genome_fai is not specified." } 
-//     if(!params.transcript_fa) { exit 1, "--transcript_fa is not specified." } 
-//     if(!params.transcript_fai) { exit 1, "--transcript_fai is not specified." } 
-//     if(!params.transcript_gtf) { exit 1, "--transcript_gtf is not specified." } 
-//     if(!params.regions_gtf) { exit 1, "--regions_gtf is not specified." } 
+//     if(!params.genome_fai) { exit 1, "--genome_fai is not specified." }
+//     if(!params.transcript_gtf) { exit 1, "--transcript_gtf is not specified." }
+//     if(!params.regions_gtf) { exit 1, "--regions_gtf is not specified." }
 
-// }
+// //     if(!params.genome_fai) { exit 1, "--genome_fai is not specified." } 
+// //     if(!params.transcript_fa) { exit 1, "--transcript_fa is not specified." } 
+// //     if(!params.transcript_fai) { exit 1, "--transcript_fai is not specified." } 
+// //     if(!params.transcript_gtf) { exit 1, "--transcript_gtf is not specified." } 
+// //     if(!params.regions_gtf) { exit 1, "--regions_gtf is not specified." } 
+
+// // }
 
 
-// Create channels for static files
-// ch_transcript_fa = Channel.fromPath(params.transcript_fa, checkIfExists: true)
-// ch_transcript_fai = Channel.fromPath(params.transcript_fai, checkIfExists: true)
+// // Create channels for static files
 // ch_genome_fai = Channel.fromPath(params.genome_fai, checkIfExists: true)
 // ch_transcript_gtf = Channel.fromPath(params.transcript_gtf, checkIfExists: true)
 ch_regions_gtf = Channel.fromPath(params.regions_gtf, checkIfExists: true)
 
-// Channels for optional inputs
-if(!params.skip_premap) {
-    ch_star_genome = Channel.fromPath(params.star_genome, checkIfExists: true)
-} else {
-    ch_star_genome = Channel.empty()
-}
+// If not making atlas
+if(!params.atlas) {
 
-if(params.goi) {
-    ch_goi = Channel.fromPath(params.goi, checkIfExists: true) 
-} else {
-    ch_goi = Channel.empty()
+    if(params.org && params.genomesdir) {
+
+        params.transcript_fa = params.genomes[ params.org ].transcript_fa
+        params.transcript_fai = params.genomes[ params.org ].transcript_fai
+        params.star_genome = params.genomes[ params.org ].star_genome
+
+    } else {
+
+        if(!params.transcript_fa) { exit 1, "--transcript_fa is not specified." }
+        // if(!params.transcript_fai) { exit 1, "--transcript_fai is not specified." }
+
+    }
+
+
+    // Create channels for static files
+    ch_transcript_fa = Channel.fromPath(params.transcript_fa, checkIfExists: true)
+    // ch_transcript_fai = Channel.fromPath(params.transcript_fai, checkIfExists: true)
+
+    // Channels for optional inputs
+    if(!params.skip_premap) {
+        ch_star_genome = Channel.fromPath(params.star_genome, checkIfExists: true)
+    } else {
+        ch_star_genome = Channel.empty()
+    }
+
+    if(params.goi) {
+        ch_goi = Channel.fromPath(params.goi, checkIfExists: true)
+    } else {
+        ch_goi = Channel.empty()
+    }
+
 }
 
 // Channel for MultiQC config
@@ -98,9 +126,9 @@ log.info "-\033[2m--------------------------------------------------------------
 
 def settings = [:]
 settings['Organism'] = params.org
-if(params.skip_qc) { settings['Skip QC'] = params.skip_qc } 
-if(params.skip_atlas) { settings['Skip atlas generation'] = params.skip_atlas }
-if(params.skip_premap) { settings['Skip premapping'] = params.skip_qc } 
+if(params.skip_qc) { settings['Skip QC'] = params.skip_qc }
+// if(params.skip_atlas) { settings['Skip atlas generation'] = params.skip_atlas }
+if(params.skip_premap) { settings['Skip premapping'] = params.skip_premap }
 settings['Adapter sequence'] = params.adapter
 settings['Minimum read quality'] = params.min_quality
 settings['Minimum read length'] = params.min_readlength
@@ -118,68 +146,114 @@ if(params.analyse_structures) settings['Analyse clusters only'] = params.cluster
 if(params.analyse_structures) settings['Analyse shuffled energies'] = params.shuffled_energies
 
 if(params.goi) { settings['Genes of interest'] = params.goi }
-if(params.goi) { settings['Bin size for contact maps'] = params.bin_size } 
-if(params.goi) { settings['Breaks for arcs'] = params.breaks } 
+if(params.goi) { settings['Bin size for contact maps'] = params.bin_size }
+if(params.goi) { settings['Breaks for arcs'] = params.breaks }
 log.info settings.collect { k,v -> "${k.padRight(25)}: $v" }.join("\n")
 log.info "-----------------------------------------------------------------"
 
 // Pipeline
 workflow {
 
-    /* 
-    PREPARE INPUTS
-    */
-    METADATA(params.input) // Get fastq paths 
-    // CUTADAPT(METADATA.out) // Trim adapters
-    
-    SPLASH_FASTP_DEDUPLICATION(METADATA.out) // Remove PCR duplicates using fastp
-    SPLASH_TRUNCATE_FASTQ_SEQID(SPLASH_FASTP_DEDUPLICATION.out.fastq) // Modify seq ids
-    SPLASH_CUTADAPT(SPLASH_TRUNCATE_FASTQ_SEQID.out.fastq) // Trim adapters
+    if(params.atlas) {
 
-    ch_transcript_fa = SPLASH_TRUNCATE_FASTA_SEQID(params.transcript_fa) // Modify seq ids
-    ch_genome_fai = SPLASH_INDEX_FASTA_GENOME(ch_transcript_fa) // same as ch_transcript_fai
-    ch_transcript_fai = SPLASH_INDEX_FASTA_TRANSCRIPT(ch_transcript_fa) // same as ch_genome_fai
-    ch_transcript_gtf = SPLASH_MAKE_PSEUDO_TRACKS(ch_transcript_fa) // needed for converting transcript coords to genomic coords 
-                                                             // (which are same for viral genome)
+        Channel.fromPath(params.input)
+               .map { path -> [ params.atlas, path ] }
+               .groupTuple(by: 0)
+               .set { ch_all_hybrids }
+            //    .view()
+            // [atlas, [hybrids_1.tsv.gz, hybrids_2.tsv.gz, hybrids_3.tsv.gz, ...]
 
-    /* 
-    IDENTIFY HYBRIDS
-    */
-    // if(!params.skip_premap) {
-    //     PREMAP(CUTADAPT.out.fastq, ch_star_genome) // Filter spliced reads
-    //     GET_HYBRIDS(PREMAP.out.fastq, ch_transcript_fa) // Identify hybrids
-    // } else {
-    //     GET_HYBRIDS(CUTADAPT.out.fastq, ch_transcript_fa) // Identify hybrids
-    // }
-    GET_HYBRIDS(SPLASH_CUTADAPT.out.fastq, ch_transcript_fa) // Identify hybrids
+        GET_ATLAS(ch_all_hybrids, ch_transcript_gtf, ch_regions_gtf, ch_genome_fai)
 
-    /* 
-    IDENTIFY NON-HYBRIDS
-    */
-    GET_NON_HYBRIDS(GET_HYBRIDS.out.hybrids.join(METADATA.out))
+    } else {
 
-    /* 
-    PROCESS HYBRIDS
-    */
-    PROCESS_HYBRIDS(GET_HYBRIDS.out.hybrids, ch_transcript_fa, ch_transcript_gtf, ch_regions_gtf)
+        /*
+        PREPARE INPUTS
+        */
+        METADATA(params.input) // Get fastq paths
+        // CUTADAPT(METADATA.out) // Trim adapters
 
-    /* 
-    GET ATLAS
-    */
-    if(!params.skip_atlas) {
-        GET_ATLAS(PROCESS_HYBRIDS.out.hybrids, ch_transcript_gtf, ch_regions_gtf, ch_genome_fai)
-    }
+        SPLASH_FASTP_DEDUPLICATION(METADATA.out) // Remove PCR duplicates using fastp
+        SPLASH_TRUNCATE_FASTQ_SEQID(SPLASH_FASTP_DEDUPLICATION.out.fastq) // Modify seq ids
+        SPLASH_CUTADAPT(SPLASH_TRUNCATE_FASTQ_SEQID.out.fastq) // Trim adapters
 
-    /* 
-    GET VISUALISATIONS
-    */
-    GET_VISUALISATIONS(PROCESS_HYBRIDS.out.hybrids, PROCESS_HYBRIDS.out.clusters, ch_genome_fai, ch_transcript_fai, ch_goi)
+        ch_transcript_fa = SPLASH_TRUNCATE_FASTA_SEQID(params.transcript_fa) // Modify seq ids
+        ch_genome_fai = SPLASH_INDEX_FASTA_GENOME(ch_transcript_fa) // same as ch_transcript_fai
+        ch_transcript_fai = SPLASH_INDEX_FASTA_TRANSCRIPT(ch_transcript_fa) // same as ch_genome_fai
+        ch_transcript_gtf = SPLASH_MAKE_PSEUDO_TRACKS(ch_transcript_fa) // needed for converting transcript coords to genomic coords 
+                                                                // (which are same for viral genome)
+        /*
+        IDENTIFY HYBRIDS
+        */
+        if (!params.skip_premap) {
+            // PREMAP(CUTADAPT.out.fastq, ch_star_genome)
+            PREMAP(SPLASH_CUTADAPT.out.fastq, ch_star_genome)
+            ch_for_hybrids = PREMAP.out.fastq
+            ch_premap_log = PREMAP.out.logs
+        } else {
+            // ch_for_hybrids = CUTADAPT.out.fastq
+            ch_for_hybrids = SPLASH_CUTADAPT.out.fastq
+            ch_premap_log = Channel.empty()
+        }
 
-    /* 
-    MAKE REPORT
-    */
-    if(!params.skip_qc) {
-        MAKE_REPORT(PREMAP.out.logs.collect(), GET_HYBRIDS.out.logs.collect(), GET_HYBRIDS.out.raw_hybrids.collect{it[1]}, PROCESS_HYBRIDS.out.hybrids.collect{it[1]}, PROCESS_HYBRIDS.out.clusters.collect{it[1]}, ch_multiqc_config)
+        GET_HYBRIDS(ch_for_hybrids, ch_transcript_fa) // Identify hybrids
+
+        /*
+        TRACK READ FATE
+        */
+        // ch_for_read_fate = CUTADAPT.out.log
+        ch_for_read_fate = SPLASH_CUTADAPT.out.log
+        .join(ch_premap_log, by: 0, remainder: true)
+        .join(GET_HYBRIDS.out.logs, by: 0)
+        .map { tuple ->
+            def sample_id = tuple[0]
+            def logs = tuple[1..-1].findAll { it != null }
+            [sample_id, logs]
+        }
+            // .view { "Channel for TRACK_READ_FATE: $it" }
+
+        TRACK_READ_FATE(ch_for_read_fate)
+
+        /*
+        IDENTIFY NON-HYBRIDS
+        */
+        GET_NON_HYBRIDS(GET_HYBRIDS.out.hybrids.join(METADATA.out))
+
+        /*
+        PROCESS HYBRIDS
+        */
+        PROCESS_HYBRIDS(GET_HYBRIDS.out.hybrids, ch_transcript_fa, ch_transcript_gtf, ch_regions_gtf)
+
+        // /*
+        // GET ATLAS
+        // */
+        // if(!params.skip_atlas) {
+        //     GET_ATLAS(PROCESS_HYBRIDS.out.hybrids, ch_transcript_gtf, ch_regions_gtf, ch_genome_fai)
+        // }
+
+        /*
+        GET VISUALISATIONS
+        */
+        GET_VISUALISATIONS(PROCESS_HYBRIDS.out.hybrids, PROCESS_HYBRIDS.out.clusters, ch_genome_fai, ch_transcript_fai, ch_goi)
+
+        /*
+        MAKE REPORT
+        */
+        if(!params.skip_qc) {
+            // ch_input_logs = params.skip_premap ? Channel.of([]) : PREMAP.out.logs.collect()
+            // ch_input_logs = params.skip_premap ? CUTADAPT.out.log.collect { it[1] } : PREMAP.out.logs.collect { it[1] }
+            ch_input_logs = params.skip_premap ? CUTADAPT.out.log.collect { it[1] } : PREMAP.out.logs.collect { it[1] }
+
+            MAKE_REPORT(
+                ch_input_logs,
+                GET_HYBRIDS.out.logs.collect { it[1..-1].flatten() },
+                GET_HYBRIDS.out.raw_hybrids.collect { it[1] },
+                PROCESS_HYBRIDS.out.hybrids.collect { it[1] },
+                PROCESS_HYBRIDS.out.clusters.collect { it[1] },
+                ch_multiqc_config
+            )
+        }
+
     }
 
 }
