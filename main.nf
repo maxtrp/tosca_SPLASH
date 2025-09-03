@@ -33,6 +33,7 @@ include { SPLASH_INDEX_FASTA as SPLASH_INDEX_FASTA_GENOME } from './modules/spla
 include { SPLASH_INDEX_FASTA as SPLASH_INDEX_FASTA_TRANSCRIPT } from './modules/splashspecific.nf'
 include { SPLASH_MAKE_PSEUDO_TRACKS } from './modules/splashspecific.nf'
 include { SPLASH_TRUNCATE_FASTA_SEQID } from './modules/splashspecific.nf'
+include { SPLASH_MERGE_FASTQ } from './modules/splashspecific.nf'
 
 // // Genome variables
 // if(params.org && params.genomesdir) {
@@ -131,8 +132,15 @@ workflow {
     */
     METADATA(params.input) // Get fastq paths 
     // CUTADAPT(METADATA.out) // Trim adapters
+
+    if(params.merge_fastq) {
+        // Concatenate reads if sample is from multiple fastq files (e.g. one per lane of flowcell) 
+        merged_reads_ch = SPLASH_MERGE_FASTQ(METADATA.out)
+        SPLASH_FASTP_DEDUPLICATION(merged_reads_ch) // Remove PCR duplicates using fastp
+    } else {
+        SPLASH_FASTP_DEDUPLICATION(METADATA.out) // Remove PCR duplicates using fastp
+    }
     
-    SPLASH_FASTP_DEDUPLICATION(METADATA.out) // Remove PCR duplicates using fastp
     SPLASH_TRUNCATE_FASTQ_SEQID(SPLASH_FASTP_DEDUPLICATION.out.fastq) // Modify seq ids
     SPLASH_CUTADAPT(SPLASH_TRUNCATE_FASTQ_SEQID.out.fastq) // Trim adapters
 
@@ -156,7 +164,11 @@ workflow {
     /* 
     IDENTIFY NON-HYBRIDS
     */
-    GET_NON_HYBRIDS(GET_HYBRIDS.out.hybrids.join(METADATA.out))
+    if (params.merge_fastq) {
+        GET_NON_HYBRIDS(GET_HYBRIDS.out.hybrids.join(merged_reads_ch))
+    } else {
+        GET_NON_HYBRIDS(GET_HYBRIDS.out.hybrids.join(METADATA.out))
+    }
 
     /* 
     PROCESS HYBRIDS
