@@ -242,7 +242,7 @@ workflow {
         if(!params.skip_qc) {
             // ch_input_logs = params.skip_premap ? Channel.of([]) : PREMAP.out.logs.collect()
             // ch_input_logs = params.skip_premap ? CUTADAPT.out.log.collect { it[1] } : PREMAP.out.logs.collect { it[1] }
-            ch_input_logs = params.skip_premap ? CUTADAPT.out.log.collect { it[1] } : PREMAP.out.logs.collect { it[1] }
+            ch_input_logs = params.skip_premap ? SPLASH_CUTADAPT.out.log.collect { it[1] } : PREMAP.out.logs.collect { it[1] }
 
             MAKE_REPORT(
                 ch_input_logs,
