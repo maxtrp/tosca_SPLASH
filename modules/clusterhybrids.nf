@@ -135,8 +135,16 @@ process CHUNK_HYBRIDS {
     }
 
     # Subsample as indicated
-    if($sample_size != -1) atlas.hybrids.dt <- atlas.hybrids.dt[sample(1:nrow(atlas.hybrids.dt), $sample_size)]
-    message("Number of hybrids to cluster: ", nrow(atlas.hybrids.dt))
+    # if($sample_size != -1) atlas.hybrids.dt <- atlas.hybrids.dt[sample(1:nrow(atlas.hybrids.dt), $sample_size)]
+    if ($sample_size != -1) {
+        # Check if there are more hybrids than the sample_size
+        if (nrow(atlas.hybrids.dt) > $sample_size) {
+            atlas.hybrids.dt <- atlas.hybrids.dt[sample(1:nrow(atlas.hybrids.dt), $sample_size)]
+        } else {
+            message("Sample size exceeds available hybrids, using all hybrids.")
+        }
+    }
+    message("Number of hybrids to cluster: ", nrow(atlas.hybrids.dt))    
 
     # Inter-transcript only
     inter_only = as.logical("$inter_only")
