@@ -21,6 +21,29 @@ process SPLASH_MERGE_FASTQ {
 
 }
 
+process SPLASH_PEAR {
+
+    tag "${sample_id}"
+    label 'process_medium'
+    container 'quay.io/biocontainers/pear:0.9.6--hb1d24b7_13' // run pear in docker biocontainer
+    publishDir "${params.outdir}/logs/${sample_id}/", mode: "copy", pattern: "*.log"
+
+    input:
+    tuple val(sample_id), path(reads)
+
+    output:
+    tuple val(sample_id), path("*.assembled.fastq.gz"), emit: fastq
+    path "*.log"                                      , emit: log
+
+    script:
+    """
+    pear --forward-fastq ${reads[0]} --reverse-fastq ${reads[1]} --output ${sample_id} --threads $task.cpus > ${sample_id}_pear.log
+
+    gzip ${sample_id}.assembled.fastq
+    """
+
+}
+
 process SPLASH_FASTP_DEDUPLICATION {
 
     tag "${sample_id}"
