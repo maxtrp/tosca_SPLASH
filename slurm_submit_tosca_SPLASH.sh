@@ -1,6 +1,8 @@
 #!/bin/bash
 #SBATCH --account=BORODAVKA-SL3-CPU	# (-A)
 #SBATCH --partition=cclake	# (-p)
+#SBATCH --nodes=1 # (-N)
+#SBATCH --ntasks=4  # (-n)
 #SBATCH --cpus-per-task=8	# (-c)
 #SBATCH --time=12:00:00	# (-t)
 #SBATCH --mem=64GB
