@@ -7,7 +7,7 @@ workflow METADATA {
     take: csv
     main:
 
-        if(params.interleave_pe_reads) {
+        if(params.assemble_pe_reads) {
             Channel
                 .fromPath( csv )
                 .splitCsv(header:true)

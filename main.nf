@@ -156,8 +156,8 @@ log.info "-----------------------------------------------------------------"
 // Pipeline
 workflow {
 
-    if(params.merge_fastq && params.interleave_pe_reads){ 
-        exit 1, "Cannot set both --merge_fastq and --interleave_pe_reads to true. Only enable one. "
+    if(params.merge_fastq && params.assemble_pe_reads){ 
+        exit 1, "Cannot set both --merge_fastq and --assemble_pe_reads to true. Only enable one. "
         }
 
     if(params.atlas) {
@@ -183,9 +183,9 @@ workflow {
             // Concatenate reads if sample is from multiple fastq files (e.g. one fastq per lane of flowcell) 
             merged_reads_ch = SPLASH_MERGE_FASTQ(METADATA.out)
             SPLASH_FASTP_DEDUPLICATION(merged_reads_ch) // Remove PCR duplicates using fastp
-        } else if(params.interleave_pe_reads) {
-            interleaved_reads_ch = SPLASH_PEAR(METADATA.out) // Interleave paired-end reads into a single fastq
-            SPLASH_FASTP_DEDUPLICATION(interleaved_reads_ch.fastq) // Remove PCR duplicates using fastp
+        } else if(params.assemble_pe_reads) {
+            assembled_reads_ch = SPLASH_PEAR(METADATA.out) // Assemble paired-end reads into a single fastq
+            SPLASH_FASTP_DEDUPLICATION(assembled_reads_ch.fastq) // Remove PCR duplicates using fastp
         } else {
             SPLASH_FASTP_DEDUPLICATION(METADATA.out) // Remove PCR duplicates using fastp
         }        
@@ -235,8 +235,8 @@ workflow {
         */
         if (params.merge_fastq) {
             GET_NON_HYBRIDS(GET_HYBRIDS.out.hybrids.join(merged_reads_ch))
-        } else if(params.interleave_pe_reads) {
-            GET_NON_HYBRIDS(GET_HYBRIDS.out.hybrids.join(interleaved_reads_ch.fastq))
+        } else if(params.assemble_pe_reads) {
+            GET_NON_HYBRIDS(GET_HYBRIDS.out.hybrids.join(assembled_reads_ch.fastq))
         } else {
             GET_NON_HYBRIDS(GET_HYBRIDS.out.hybrids.join(METADATA.out))
         }

@@ -39,6 +39,8 @@ process SPLASH_PEAR {
     """
     pear --forward-fastq ${reads[0]} --reverse-fastq ${reads[1]} --output ${sample_id} --threads $task.cpus > ${sample_id}_pear.log
 
+    cat ${sample_id}.unassembled.forward.fastq >> ${sample_id}.assembled.fastq
+
     gzip ${sample_id}.assembled.fastq
     """
 
