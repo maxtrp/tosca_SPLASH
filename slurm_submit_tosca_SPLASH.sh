@@ -5,7 +5,7 @@
 #SBATCH --ntasks=4  # (-n)
 #SBATCH --cpus-per-task=8	# (-c)
 #SBATCH --time=12:00:00	# (-t)
-#SBATCH --mem=192GB
+#SBATCH --mem=100GB
 
 if [ $# -eq 0 ]; then
   echo "Error: Not enough arguments specified"
