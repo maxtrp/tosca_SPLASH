@@ -197,7 +197,7 @@ workflow {
         ch_genome_fai = SPLASH_INDEX_FASTA_GENOME(ch_transcript_fa) // same as ch_transcript_fai
         ch_transcript_fai = SPLASH_INDEX_FASTA_TRANSCRIPT(ch_transcript_fa) // same as ch_genome_fai
         ch_transcript_gtf = SPLASH_MAKE_PSEUDO_TRACKS(ch_transcript_fa) // needed for converting transcript coords to genomic coords 
-                                                                // (which are same for viral genome)
+                                                                // (which are the same when aligning to a transcriptome)
         /*
         IDENTIFY HYBRIDS
         */
